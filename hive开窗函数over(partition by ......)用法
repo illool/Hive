@@ -1,0 +1,47 @@
+一、over(partition by ......)主要和聚合函数sum()、count()、avg()等结合使用，实现分组聚合的功能
+
+示列:根据day_id日期和mac_id机器码进行聚合分组求每一天的该机器的销量和即sum_num，hive sql语句:select day_id,mac_id,mac_color,day_num,sum(day_num)over(partition by day_id,mac_id order by day_id) sum_num from test_temp_mac_id;
+
+注:day_id,mac_id,mac_color,day_num为查询原有数据,sum_num为计算结果
+
+day_id 	mac_id 	mac_color 	day_num 	sum_num
+20171011 	1292 	金色 	1 	89
+20171011 	1292 	金色 	14 	89
+20171011 	1292 	金色 	2 	89
+20171011 	1292 	金色 	11 	89
+20171011 	1292 	黑色 	2 	89
+20171011 	1292 	粉金 	58 	89
+20171011 	1292 	金色 	1 	89
+20171011 	2013 	金色 	10 	22
+20171011 	2013 	金色 	9 	22
+20171011 	2013 	金色 	2 	22
+20171011 	2013 	金色 	1 	22
+20171012 	1292 	金色 	5 	18
+20171012 	1292 	金色 	7 	18
+20171012 	1292 	金色 	5 	18
+20171012 	1292 	粉金 	1 	18
+20171012 	2013 	粉金 	1 	7
+20171012 	2013 	金色 	6 	7
+20171013 	1292 	黑色 	1 	1
+20171013 	2013 	粉金 	2 	2
+20171011 	12460 	茶花金 	1 	1
+
+
+二、over(partition by ......)与group by 区别
+
+如果用group by实现一中根据day_id日期和mac_id机器码进行聚合分组求每一天的该机器的销量和即sum_num,
+
+则hive sql语句为:select day_id,mac_id,sum(day_num) sum_num from test_temp_mac_id group by day_id,mac_id order by day_id;结果如下表
+
+注:我们可以观察到group by可以实现同样的分组聚合功能，但sql语句不能写与分组聚合无关的字段，否则会报错，即group by 与over(partition by ......)主要区别为，带上group by的hive sql语句只能显示与分组聚合相关的字段，而带上over(partition by ......)的hive sql语句能显示所有字段.。
+
+day_id 	mac_id 	sum_num
+20171011 	124609 	1
+20171011 	20130 	22
+20171011 	12922 	89
+20171012 	12922 	18
+20171012 	20130 	7
+20171013 	12922 	1
+20171013 	20130 	2
+
+
