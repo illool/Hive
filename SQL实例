@@ -1,0 +1,27 @@
+use sopdm;
+
+drop table sopdm.test_gfj;
+create table sopdm.test_gfj stored as rcfile as
+select 
+a.GDS_ID as GDS_ID,e.GDS_NM as GDS_NM,nvl(a.sum_TOT_QTY,0) as sum_TOT_QTY,
+a.CHNL_CD,nvl(b.sum_PV_QTY,0) as sum_PV_QTY,nvl(c.in_CART,0) as in_CART,
+nvl(d.in_CLCT,0) as in_CLCT,nvl(f.G_RAT,1) as G_RAT 
+from 
+(select GDS_ID,sum(TOT_QTY) as sum_TOT_QTY,CHNL_CD from SOPDM.TDM_ML_OR_ORDER_D where statis_date ='20180306' and CHNL_CD='50' group by GDS_ID,CHNL_CD) a
+left join 
+(select GDS_ID,sum(PV_QTY) as sum_PV_QTY from SOPDM.TDM_ML_BR_CUST_VISIT_D where statis_date >='20180220' and statis_date <='2018030' and nvl(GDS_ID,'-')!='-' group by GDS_ID) b
+on a.GDS_ID = b.GDS_ID
+left join 
+(select GDS_ID,count(GDS_ID) as in_CART from SOPDM.TDM_ML_MEM_CART1_INCR_D where statis_date >='20180220' and statis_date <='20180301'group by GDS_ID) c
+on a.GDS_ID = c.GDS_ID
+left join
+(select GDS_ID,count(GDS_ID) as in_CLCT from SOPDM.TDM_ML_CA_GDS_CLCT_D where statis_date >='20180220' and statis_date <='20180301'group by GDS_ID) d
+on a.GDS_ID = d.GDS_ID
+left join
+(select GDS_CD,GDS_NM from SOPDM.TDM_ML_PUB_GDS_TD) e
+on a.GDS_ID = e.GDS_CD
+left join
+(select a1.GDS_CD as GDS_CD,(a1.G_GDS_EVAL_PNT/a1.GDS_EVAL_PNT) as G_RAT from 
+(select GDS_CD,count(GDS_EVAL_PNT) as GDS_EVAL_PNT,sum(case when GDS_EVAL_PNT>=4 then 1 else 0 end) as G_GDS_EVAL_PNT from BI_SOR.TSOR_SVC_GDS_EVAL_D_IST group by GDS_CD) a1
+) f
+on a.GDS_ID = f.GDS_CD;
