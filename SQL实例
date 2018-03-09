@@ -25,3 +25,7 @@ left join
 (select GDS_CD,count(GDS_EVAL_PNT) as GDS_EVAL_PNT,sum(case when GDS_EVAL_PNT>=4 then 1 else 0 end) as G_GDS_EVAL_PNT from BI_SOR.TSOR_SVC_GDS_EVAL_D_IST group by GDS_CD) a1
 ) f
 on a.GDS_ID = f.GDS_CD;
+
+
+SET hive.exec.compress.output=false;
+INSERT OVERWRITE LOCAL DIRECTORY '/data/sopdm/workspace/hadoop-rpc/script/sopdm/test' row format delimited fields terminated by '\t' select xxx from xxx where xxx;
