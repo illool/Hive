@@ -1,0 +1,296 @@
+ver(Partition by...) 一个超级牛皮的ORACLE特有函数。
+
+天天都用ORACLE，用了快2年了。最近才接触到这个功能强大而灵活的函数。真实惭愧啊！
+
+
+oracle的分析函数over 及开窗函数
+一：分析函数over
+Oracle从8.1.6开始提供分析函数，分析函数用于计算基于组的某种聚合值，它和聚合函数的不同之处是
+对于每个组返回多行，而聚合函数对于每个组只返回一行。
+下面通过几个例子来说明其应用。
+1：统计某商店的营业额。
+date sale
+1 20
+2 15
+3 14
+4 18
+5 30
+规则：按天统计：每天都统计前面几天的总额
+得到的结果：
+DATE SALE SUM
+----- -------- ------
+1 20 20 --1天
+2 15 35 --1天＋2天
+3 14 49 --1天＋2天＋3天
+4 18 67 .
+5 30 97 .
+
+2:统计各班成绩第一名的同学信息
+NAME CLASS S
+----- ----- ----------------------
+fda 1 80
+ffd 1 78
+dss 1 95
+cfe 2 74
+gds 2 92
+gf 3 99
+ddd 3 99
+adf 3 45
+asdf 3 55
+3dd 3 78
+
+通过：
+--
+select * from
+(
+select name,class,s,rank()over(partition by class order by s desc) mm from t2
+)
+where mm=1
+--
+得到结果：
+NAME CLASS S MM
+----- ----- ---------------------- ----------------------
+dss 1 95 1
+gds 2 92 1
+gf 3 99 1
+ddd 3 99 1
+
+注意：
+1.在求第一名成绩的时候，不能用row_number()，因为如果同班有两个并列第一，row_number()只返回一个结果
+2.rank()和dense_rank()的区别是：
+--rank()是跳跃排序，有两个第二名时接下来就是第四名
+--dense_rank()l是连续排序，有两个第二名时仍然跟着第三名
+
+
+3.分类统计 (并显示信息)
+A B C
+-- -- ----------------------
+m a 2
+n a 3
+m a 2
+n b 2
+n b 1
+x b 3
+x b 2
+x b 4
+h b 3
+select a,c,sum(c)over(partition by a) from t2
+得到结果：
+A B C SUM(C)OVER(PARTITIONBYA)
+-- -- ------- ------------------------
+h b 3 3
+m a 2 4
+m a 2 4
+n a 3 6
+n b 2 6
+n b 1 6
+x b 3 9
+x b 2 9
+x b 4 9
+
+如果用sum，group by 则只能得到
+A SUM(C)
+-- ----------------------
+h 3
+m 4
+n 6
+x 9
+无法得到B列值
+
+＝＝＝＝＝
+select * from test
+
+数据:
+A B C
+1 1 1
+1 2 2
+1 3 3
+2 2 5
+3 4 6
+
+
+---将B栏位值相同的对应的C 栏位值加总
+select a,b,c, SUM(C) OVER (PARTITION BY B) C_Sum
+from test
+
+A B C C_SUM
+1 1 1 1
+1 2 2 7
+2 2 5 7
+1 3 3 3
+3 4 6 6
+
+ 
+
+---如果不需要已某个栏位的值分割,那就要用 null
+
+eg: 就是将C的栏位值summary 放在每行后面
+
+select a,b,c, SUM(C) OVER (PARTITION BY null) C_Sum
+from test
+
+A B C C_SUM
+1 1 1 17
+1 2 2 17
+1 3 3 17
+2 2 5 17
+3 4 6 17
+
+ 
+
+求个人工资占部门工资的百分比
+
+SQL> select * from salary;
+
+NAME DEPT SAL
+---------- ---- -----
+a 10 2000
+b 10 3000
+c 10 5000
+d 20 4000
+
+SQL> select name,dept,sal,sal*100/sum(sal) over(partition by dept) percent from salary;
+
+NAME DEPT SAL PERCENT
+---------- ---- ----- ----------
+a 10 2000 20
+b 10 3000 30
+c 10 5000 50
+d 20 4000 100
+
+二：开窗函数
+开窗函数指定了分析函数工作的数据窗口大小，这个数据窗口大小可能会随着行的变化而变化，举例如下：
+1：
+over（order by salary） 按照salary排序进行累计，order by是个默认的开窗函数
+over（partition by deptno）按照部门分区
+2：
+over（order by salary range between 5 preceding and 5 following）
+每行对应的数据窗口是之前行幅度值不超过5，之后行幅度值不超过5
+例如:对于以下列
+aa
+1
+2
+2
+2
+3
+4
+5
+6
+7
+9
+
+sum(aa)over（order by aa range between 2 preceding and 2 following）
+得出的结果是
+AA SUM
+---------------------- -------------------------------------------------------
+1 10
+2 14
+2 14
+2 14
+3 18
+4 18
+5 22
+6 18
+7 22
+9 9
+
+就是说，对于aa=5的一行 ，sum为 5-1<=aa<=5+2 的和
+对于aa=2来说 ，sum=1+2+2+2+3+4=14 ；
+又如 对于aa=9 ，9-1<=aa<=9+2 只有9一个数，所以sum=9 ；
+
+3：其它：
+over（order by salary rows between 2 preceding and 4 following）
+每行对应的数据窗口是之前2行，之后4行
+4：下面三条语句等效：
+over（order by salary rows between unbounded preceding and unbounded following）
+每行对应的数据窗口是从第一行到最后一行，等效：
+over（order by salary range between unbounded preceding and unbounded following）
+等效
+over(partition by null)
+
+ 
+
+常用的分析函数如下所列:
+
+row_number() over(partition by ... order by ...)
+rank() over(partition by ... order by ...)
+dense_rank() over(partition by ... order by ...)
+count() over(partition by ... order by ...)
+max() over(partition by ... order by ...)
+min() over(partition by ... order by ...)
+sum() over(partition by ... order by ...)
+avg() over(partition by ... order by ...)
+first_value() over(partition by ... order by ...)
+last_value() over(partition by ... order by ...)
+lag() over(partition by ... order by ...)
+lead() over(partition by ... order by ...)
+
+示例
+SQL> select type,qty from test;
+
+TYPE QTY
+---------- ----------
+1 6
+2 9
+
+SQL> select type,qty,to_char(row_number() over(partition by type order by qty))||'/'||to_char(count(*) over(partition by type)) as cnt2 from test;
+
+TYPE QTY CNT2
+---------- ---------- ------------
+3 1/2
+1 6 2/2
+2 5 1/3
+7 2/3
+2 9 3/3
+
+SQL> select * from test;
+---------- -------------------------------------------------
+1 11111
+2 22222
+3 33333
+4 44444
+
+SQL> select t.id,mc,to_char(b.rn)||'/'||t.id)e
+2 from test t,
+(select rownum rn from (select max(to_number(id)) mid from test) connect by rownum <=mid ))L
+4 where b.rn<=to_number(t.id)
+order by id
+
+ID MC TO_CHAR(B.RN)||'/'||T.ID
+--------- -------------------------------------------------- ---------------------------------------------------
+1 11111 1/1
+2 22222 1/2
+2 22222 2/2
+3 33333 1/3
+3 33333 2/3
+3 33333 3/3
+44444 1/4 44444 2/4
+4 44444 3/4CNOUG4 44444 4/4
+
+10 rows selected
+
+*******************************************************************
+
+关于partition by
+
+这些都是分析函数，好像是8.0以后才有的 row_number()和rownum差不多，功能更强一点（可以在各个分组内从1开时排序） rank()是跳跃排序，有两个第二名时接下来就是第四名（同样是在各个分组内） dense_rank()l是连续排序，有两个第二名时仍然跟着第三名。相比之下row_number是没有重复值的 lag（arg1,arg2,arg3): arg1是从其他行返回的表达式 arg2是希望检索的当前行分区的偏移量。是一个正的偏移量，时一个往回检索以前的行的数目。 arg3是在arg2表示的数目超出了分组的范围时返回的值。
+
+1.
+select deptno,row_number() over(partition by deptno order by sal) from emp order by deptno;
+2.
+select deptno,rank() over (partition by deptno order by sal) from emp order by deptno;
+3.
+select deptno,dense_rank() over(partition by deptno order by sal) from emp order by deptno;
+4.
+select deptno,ename,sal,lag(ename,1,null) over(partition by deptno order by ename) from emp ord er by deptno;
+5.
+select deptno,ename,sal,lag(ename,2,'example') over(partition by deptno order by ename) from em p
+order by deptno;
+6.
+select deptno, sal,sum(sal) over(partition by deptno) from emp;--每行记录后都有总计值 select deptno, sum(sal) from emp group by deptno;
+7. 求每个部门的平均工资以及每个人与所在部门的工资差额
+
+select deptno,ename,sal ,
+round(avg(sal) over(partition by deptno)) as dept_avg_sal,
+round(sal-avg(sal) over(partition by deptno)) as dept_sal_diff
+from emp;
