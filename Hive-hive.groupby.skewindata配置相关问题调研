@@ -1,0 +1,58 @@
+
+
+使用hive的过程中，我们习惯性用set hive.groupby.skewindata=true来避免因数据倾斜造成的计算效率问题，但是每个设置都是把双刃剑，最近调研了下相关问题，现总结如下：
+
+    从下表可以看出，skewindata配置真正发生作用，只会在以下三种情况下，能够将1个job转化为2个job：
+        select count distinct ... from ...
+        select a,count(*) from ... group by a
+        select count(*),count(distinct ...) from
+    其中，该设置下会出现的错误的是：
+
+select a,count(*),count(distinct...) from ... group by a    
+
+    1
+
+解决方案，需要将语句修改为：
+
+select a,sum(1),count(distinct ...) from ... group by a
+
+    1
+
+    不同语句在是否进行该设置下的执行对比
+
+语句 		Set hive.groupby.skewindata=true 		Set hive.groupby.skewindata=false
+	job数 	Groupby mode 	job数 	Groupby mode
+count 	1 	final 	1 	mergepartitial
+count distinct 	2 	partitials+final 	1 	mergepartitial
+count * … group by 	2 	partitials+final 	1 	mergepartitial
+count distinct … group by 	1 	complete 	1 	mergepartitial
+count *,count distinct 	2 	partitials+final 	1 	mergepartitial
+count *,count distinct … group by 	1 	complete 	1 	mergepartitial
+sum(1),count distinct … group by 	1 	complete 	1 	mergepartitial
+
+    为了方便解释以上逻辑，现将UDAF相关mode解释如下：
+
+UDAF MODE 	说明
+complete 	iterate,terminate(从原始数据直接到最终汇聚结果)
+partitial1 	iterate,terminatePartitial(从原始数据直接到部分汇聚结果)
+partitial2 	merge,terminate(从部分汇聚直接到最终汇聚结果)
+final 	iterate,terminate(从原始数据直接到最终汇聚结果)
+
+- Group by过程中设置MODE是在UDAF的mode基础上做了一层封装，具体如下：
+Groupby mode 	说明
+complete 	同UDAF的complete
+partitial1 	同UDAF的partitial1
+partitial2 	同UDAF的partitial2
+partitials 	non-distinct: partitial1;
+distinct:partitial2
+final 	同UDAF的final
+mergepartitial 	non-distinct:final;
+distinct:complete
+
+由以上两张表可看出，hive.groupby.skewindata就是根据distinct/non-distinct的选择，直接将mode从mergepartitial设置成对应的确定形式，但是当distinct和non-distinct同时存在时，选择就会出问题。
+
+    TODO:
+        虽然在 Count*,count distinct … group by 中，我们可以通过将count* 替换为sum(1)来解决问题，但是具体原因还需要通过调研两个不同的UDAF的实现方式进行进一步调研。
+        如何将一个select a,count(distinct b) from tbl group by a的形式改写成map-reduce的形式？
+
+版权声明：本文为博主原创文章，未经博主允许不得转载。 https://blog.csdn.net/baidu_29843359/article/details/46967473 
