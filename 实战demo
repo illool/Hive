@@ -1,0 +1,331 @@
+--@Name:TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D
+--@Description:商品页访问转化统计
+--@Target:SOPDM.TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D
+--@Source:SOPDM.TDM_ML_BR_SCSP_VISIT_SOURCE_D
+--@Source:SOPDM.TDM_SDASP_CATE_UV_RATIO
+--@Source:SOPDM.TDM_ML_BR_SCSP_VISIT_SOURCE_D
+--@Source:SOPDM.TDM_SDASP_CATE_DETAIL_SALE_D
+--@Author:14060650
+--@CreateDate:2018-01-29
+--@ModifyBy:
+--@ModifyDate:
+--@ModifyDesc:
+--@Copyright
+
+-- 设置作业名
+set mapred.job.name = TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D(${hivevar:statis_date});
+--set hive.exec.reducers.bytes.per.reducer=150000000;
+
+--@1.切换schema
+USE SOPDM;
+
+--@2.创建目标表 TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D
+CREATE TABLE IF NOT EXISTS TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D
+(
+      TER_TYPE                STRING,
+      DEPT_CD                 STRING,
+      CATE_CD                 STRING,
+      BRAND_CD                STRING,
+      BRAND_NM                STRING,
+      GENERAL_GDS_CD          STRING,
+      GENERAL_GDS_NM          STRING,
+      UV_NUM                  INT,
+      UV_NUM_XN               INT,
+      UV_1C2B_NUM             INT,
+      UV_1C2B_NUM_XN          INT,
+      UV_OTHER_NUM            INT,
+      UV_OTHER_NUM_XN         INT,
+      UV_LEAVE_NUM            INT,
+      UV_LEAVE_NUM_XN         INT,
+      UV_1C1B_NUM             INT,
+      UV_1C1B_NUM_XN          INT,
+      P_CLCT_CUST_NUM         INT,
+      CART_CUST_NUM           INT,
+      PLC_MEM_NUM             INT,
+      BUYER_NUM               INT,
+      ETL_TIME                STRING
+) PARTITIONED BY(STATIS_DATE STRING) STORED AS RCFILE;
+
+--@3.1 预处理数据，统计各来源商品流量
+DROP TABLE IF EXISTS TMP_TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D_${hivevar:statis_date}_01;
+CREATE TABLE IF NOT EXISTS TMP_TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D_${hivevar:statis_date}_01 STORED AS RCFILE AS
+SELECT
+      T1.TER_TYPE,
+      T1.DEPT_CD,
+      T1.CATE_CD,
+      T1.BRAND_CD,
+      T1.BRAND_NM,
+      T1.GENERAL_GDS_CD,
+      T1.GENERAL_GDS_NM,
+      T1.TRAFFIC_S_CD,
+      T1.TRAFFIC_S_NM,
+      T1.UV_NUM,
+      NVL(T2.TRFC_UV_RATIO,1) AS TRFC_UV_RATIO,
+      T1.UV_NUM*NVL(T2.TRFC_UV_RATIO,1) AS UV_NUM_XN
+FROM (
+      SELECT
+            TER_TYPE,
+            MAX(DEPT_CD) AS DEPT_CD,
+            MAX(CATE_CD) AS CATE_CD,
+            MAX(BRAND_CD) AS BRAND_CD,
+            MAX(BRAND_NM) AS BRAND_NM,
+            GENERAL_GDS_CD,
+            MAX(GENERAL_GDS_NM) AS GENERAL_GDS_NM,
+            TRAFFIC_S_CD,
+            MAX(TRAFFIC_S_NM) AS TRAFFIC_S_NM,
+            COUNT(DISTINCT VISITOR_ID) AS UV_NUM
+      FROM (
+            SELECT
+                  IF(TER_TYPE IN('WAP','APP'),'MB','PC') AS TER_TYPE,
+                  DEPT_CD,
+                  L2_GDS_GROUP_CD AS CATE_CD,
+                  SUBSTRING(BRAND_CD,-4) AS BRAND_CD,
+                  BRAND_NM,
+                  GENERAL_GDS_CD,
+                  GENERAL_GDS_NM,
+                  PV_ID,
+                  VISITOR_ID,
+                  TRAFFIC_S_CD,
+                  TRAFFIC_S_NM,
+                  TRAFFIC_N_CD
+            FROM SOPDM.TDM_ML_BR_SCSP_VISIT_SOURCE_D
+            WHERE STATIS_DATE = '${hivevar:statis_date}'
+            UNION ALL
+            SELECT
+                  'AL' AS TER_TYPE,
+                  DEPT_CD,
+                  L2_GDS_GROUP_CD AS CATE_CD,
+                  SUBSTRING(BRAND_CD,-4) AS BRAND_CD,
+                  BRAND_NM,
+                  GENERAL_GDS_CD,
+                  GENERAL_GDS_NM,
+                  PV_ID,
+                  VISITOR_ID,
+                  TRAFFIC_S_CD,
+                  TRAFFIC_S_NM,
+                  TRAFFIC_N_CD
+            FROM SOPDM.TDM_ML_BR_SCSP_VISIT_SOURCE_D
+            WHERE STATIS_DATE = '${hivevar:statis_date}'
+      ) T11
+      GROUP BY TER_TYPE,GENERAL_GDS_CD,TRAFFIC_S_CD
+) T1
+LEFT JOIN (
+      SELECT
+            L2_GDS_GROUP_CD,
+            DEPT_CD,
+            BRAND_CD,
+            ONE_TP_CD,
+            TRFC_UV_RATIO
+      FROM SOPDM.TDM_SDASP_CATE_UV_RATIO
+) T2
+ON T1.CATE_CD=T2.L2_GDS_GROUP_CD AND T1.DEPT_CD=T2.DEPT_CD AND T1.BRAND_CD=T2.BRAND_CD AND T1.TRAFFIC_S_NM=T2.ONE_TP_CD;
+
+--@3.2 预处理数据，统计各商品流量
+DROP TABLE IF EXISTS TMP_TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D_${hivevar:statis_date}_02;
+CREATE TABLE IF NOT EXISTS TMP_TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D_${hivevar:statis_date}_02 STORED AS RCFILE AS
+SELECT
+      T1.TER_TYPE,
+      T1.DEPT_CD,
+      T1.CATE_CD,
+      T1.BRAND_CD,
+      T1.BRAND_NM,
+      T1.GENERAL_GDS_CD,
+      T1.GENERAL_GDS_NM,
+      T1.UV_NUM,
+      T1.UV_NUM+(T2.UV_NUM_XN-T2.UV_NUM) AS UV_NUM_XN,
+      T1.UV_1C2B_NUM,
+      T1.UV_OTHER_NUM,
+      T1.UV_LEAVE_NUM,
+      T1.UV_1C1B_NUM,
+      T1.P_CLCT_CUST_NUM,
+      T1.CART_CUST_NUM
+FROM (
+      SELECT
+            TER_TYPE,
+            MAX(DEPT_CD) AS DEPT_CD,
+            MAX(CATE_CD) AS CATE_CD,
+            MAX(BRAND_CD) AS BRAND_CD,
+            MAX(BRAND_NM) AS BRAND_NM,
+            GENERAL_GDS_CD,
+            MAX(GENERAL_GDS_NM) AS GENERAL_GDS_NM,
+            COUNT(DISTINCT VISITOR_ID) AS UV_NUM,
+            COUNT(DISTINCT IF(TRAFFIC_N_CD='02',VISITOR_ID,NULL)) AS UV_1C2B_NUM,
+            COUNT(DISTINCT IF(TRAFFIC_N_CD='99',VISITOR_ID,NULL)) AS UV_OTHER_NUM,
+            COUNT(DISTINCT IF(TRAFFIC_N_CD='00',VISITOR_ID,NULL)) AS UV_LEAVE_NUM,
+            COUNT(DISTINCT IF(TRAFFIC_N_CD='01',VISITOR_ID,NULL)) AS UV_1C1B_NUM,
+            COUNT(DISTINCT IF(IS_P_CLCT=1,VISITOR_ID,NULL)) AS P_CLCT_CUST_NUM,
+            COUNT(DISTINCT IF(IS_CART=1,VISITOR_ID,NULL)) AS CART_CUST_NUM
+      FROM (
+            SELECT
+                  IF(TER_TYPE IN('WAP','APP'),'MB','PC') AS TER_TYPE,
+                  DEPT_CD,
+                  L2_GDS_GROUP_CD AS CATE_CD,
+                  SUBSTRING(BRAND_CD,-4) AS BRAND_CD,
+                  BRAND_NM,
+                  GENERAL_GDS_CD,
+                  GENERAL_GDS_NM,
+                  PV_ID,
+                  VISITOR_ID,
+                  TRAFFIC_S_CD,
+                  TRAFFIC_S_NM,
+                  TRAFFIC_N_CD,
+                  IS_CART,
+                  IS_P_CLCT
+            FROM SOPDM.TDM_ML_BR_SCSP_VISIT_SOURCE_D
+            WHERE STATIS_DATE = '${hivevar:statis_date}'
+            UNION ALL
+            SELECT
+                  'AL' AS TER_TYPE,
+                  DEPT_CD,
+                  L2_GDS_GROUP_CD AS CATE_CD,
+                  SUBSTRING(BRAND_CD,-4) AS BRAND_CD,
+                  BRAND_NM,
+                  GENERAL_GDS_CD,
+                  GENERAL_GDS_NM,
+                  PV_ID,
+                  VISITOR_ID,
+                  TRAFFIC_S_CD,
+                  TRAFFIC_S_NM,
+                  TRAFFIC_N_CD,
+                  IS_CART,
+                  IS_P_CLCT
+            FROM SOPDM.TDM_ML_BR_SCSP_VISIT_SOURCE_D
+            WHERE STATIS_DATE = '${hivevar:statis_date}'
+      ) T11
+      GROUP BY TER_TYPE,GENERAL_GDS_CD
+) T1
+INNER JOIN (
+SELECT
+      TER_TYPE,
+      GENERAL_GDS_CD,
+      SUM(UV_NUM) AS UV_NUM,
+      SUM(UV_NUM_XN) AS UV_NUM_XN
+FROM TMP_TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D_${hivevar:statis_date}_01
+GROUP BY TER_TYPE,GENERAL_GDS_CD
+) T2 
+ON T1.TER_TYPE=T2.TER_TYPE AND T1.GENERAL_GDS_CD=T2.GENERAL_GDS_CD;
+
+--@3.3 预处理数据，统计各商品订单
+DROP TABLE IF EXISTS TMP_TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D_${hivevar:statis_date}_03;
+CREATE TABLE IF NOT EXISTS TMP_TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D_${hivevar:statis_date}_03 STORED AS RCFILE AS
+SELECT
+      IF(TER_TYPE IN('WAP','APP'),'MB','PC') AS TER_TYPE,
+      MAX(DEPT_CD) AS DEPT_CD,
+      MAX(CATE_CD) AS CATE_CD,
+      MAX(SUBSTRING(BRAND_CD,-4)) AS BRAND_CD,
+      MAX(BRAND_NM) AS BRAND_NM,
+      GENERAL_GDS_CD,
+      MAX(GENERAL_GDS_NM) AS GENERAL_GDS_NM,
+      COUNT(DISTINCT IF(ORDER_DATE = STATIS_DATE,MEMBER_ID,CAST(NULL AS STRING))) AS PLC_MEM_NUM,
+      COUNT(DISTINCT IF(PAY_DATE = STATIS_DATE,MEMBER_ID,CAST(NULL AS STRING))) AS BUYER_NUM
+FROM SOPDM.TDM_SDASP_CATE_DETAIL_SALE_D
+WHERE STATIS_DATE = '${hivevar:statis_date}'
+  AND CHNL_CD = '01'
+  AND DEPT_CD IS NOT NULL
+  AND CATE_CD IS NOT NULL
+  AND BRAND_CD IS NOT NULL
+  AND CATE_LVL = 2
+  AND NVL(ORDER_SOURCE,'-')<>'OMS-TMALL'
+GROUP BY IF(TER_TYPE IN('WAP','APP'),'MB','PC'),GENERAL_GDS_CD
+UNION ALL
+SELECT
+      'AL' AS TER_TYPE,
+      MAX(DEPT_CD) AS DEPT_CD,
+      MAX(CATE_CD) AS CATE_CD,
+      MAX(SUBSTRING(BRAND_CD,-4)) AS BRAND_CD,
+      MAX(BRAND_NM) AS BRAND_NM,
+      GENERAL_GDS_CD,
+      MAX(GENERAL_GDS_NM) AS GENERAL_GDS_NM,
+      COUNT(DISTINCT IF(ORDER_DATE = STATIS_DATE,MEMBER_ID,CAST(NULL AS STRING))) AS PLC_MEM_NUM,
+      COUNT(DISTINCT IF(PAY_DATE = STATIS_DATE,MEMBER_ID,CAST(NULL AS STRING))) AS BUYER_NUM
+FROM SOPDM.TDM_SDASP_CATE_DETAIL_SALE_D
+WHERE STATIS_DATE = '${hivevar:statis_date}'
+  AND CHNL_CD = '01'
+  AND DEPT_CD IS NOT NULL
+  AND CATE_CD IS NOT NULL
+  AND BRAND_CD IS NOT NULL
+  AND CATE_LVL = 2
+  AND NVL(ORDER_SOURCE,'-')<>'OMS-TMALL'
+GROUP BY GENERAL_GDS_CD;
+
+--@4.汇总数据，插入到目标表
+ALTER TABLE TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D DROP IF EXISTS PARTITION (STATIS_DATE='${hivevar:statis_date}');
+INSERT OVERWRITE TABLE TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D PARTITION (STATIS_DATE='${hivevar:statis_date}')
+SELECT
+      TER_TYPE,
+      MAX(DEPT_CD) AS DEPT_CD,
+      MAX(CATE_CD) AS CATE_CD,
+      MAX(BRAND_CD) AS BRAND_CD,
+      MAX(BRAND_NM) AS BRAND_NM,
+      GENERAL_GDS_CD,
+      MAX(GENERAL_GDS_NM) AS GENERAL_GDS_NM,
+      SUM(UV_NUM) AS UV_NUM,
+      SUM(UV_NUM_XN) AS UV_NUM_XN,
+      SUM(UV_1C2B_NUM) AS UV_1C2B_NUM,
+      SUM(UV_1C2B_NUM_XN) AS UV_1C2B_NUM_XN,
+      SUM(UV_OTHER_NUM) AS UV_OTHER_NUM,
+      SUM(UV_OTHER_NUM_XN) AS UV_OTHER_NUM_XN,
+      SUM(UV_LEAVE_NUM) AS UV_LEAVE_NUM,
+      SUM(UV_LEAVE_NUM_XN) AS UV_LEAVE_NUM_XN,
+      SUM(UV_1C1B_NUM) AS UV_1C1B_NUM,
+      SUM(UV_1C1B_NUM_XN) AS UV_1C1B_NUM_XN,
+      SUM(P_CLCT_CUST_NUM) AS P_CLCT_CUST_NUM,
+      SUM(CART_CUST_NUM) AS CART_CUST_NUM,
+      SUM(PLC_MEM_NUM) AS PLC_MEM_NUM,
+      SUM(BUYER_NUM) AS BUYER_NUM,
+      FROM_UNIXTIME(UNIX_TIMESTAMP(),'yyyy-MM-dd HH:mm:ss') AS ETL_TIME
+FROM (
+      SELECT
+            TER_TYPE,
+            DEPT_CD,
+            CATE_CD,
+            BRAND_CD,
+            BRAND_NM,
+            GENERAL_GDS_CD,
+            GENERAL_GDS_NM,
+            UV_NUM,
+            UV_NUM_XN,
+            UV_1C2B_NUM,
+            CAST((UV_1C2B_NUM/UV_NUM)*UV_NUM_XN AS BIGINT) AS UV_1C2B_NUM_XN,
+            UV_OTHER_NUM,
+            CAST((UV_OTHER_NUM/UV_NUM)*UV_NUM_XN AS BIGINT) AS UV_OTHER_NUM_XN,
+            UV_LEAVE_NUM,
+            CAST((UV_LEAVE_NUM/UV_NUM)*UV_NUM_XN AS BIGINT) AS UV_LEAVE_NUM_XN,
+            UV_1C1B_NUM,
+            CAST((UV_1C1B_NUM/UV_NUM)*UV_NUM_XN AS BIGINT) AS UV_1C1B_NUM_XN,
+            P_CLCT_CUST_NUM,
+            CART_CUST_NUM,
+            0 AS PLC_MEM_NUM,
+            0 AS BUYER_NUM
+      FROM TMP_TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D_${hivevar:statis_date}_02
+      UNION ALL
+      SELECT
+            TER_TYPE,
+            DEPT_CD,
+            CATE_CD,
+            BRAND_CD,
+            BRAND_NM,
+            GENERAL_GDS_CD,
+            GENERAL_GDS_NM,
+            0 AS UV_NUM,
+            0 AS UV_NUM_XN,
+            0 AS UV_1C2B_NUM,
+            0 AS UV_1C2B_NUM_XN,
+            0 AS UV_OTHER_NUM,
+            0 AS UV_OTHER_NUM_XN,
+            0 AS UV_LEAVE_NUM,
+            0 AS UV_LEAVE_NUM_XN,
+            0 AS UV_1C1B_NUM,
+            0 AS UV_1C1B_NUM_XN,
+            0 AS P_CLCT_CUST_NUM,
+            0 AS CART_CUST_NUM,
+            PLC_MEM_NUM,
+            BUYER_NUM
+      FROM TMP_TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D_${hivevar:statis_date}_03
+) T
+GROUP BY TER_TYPE,GENERAL_GDS_CD;
+
+--@5.删除临时表
+DROP TABLE IF EXISTS TMP_TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D_${hivevar:statis_date}_01;
+DROP TABLE IF EXISTS TMP_TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D_${hivevar:statis_date}_02;
+DROP TABLE IF EXISTS TMP_TDM_SDASP_BCATE_GDS_PAGE_ANALYS_D_${hivevar:statis_date}_03;
