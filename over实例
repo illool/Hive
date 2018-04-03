@@ -7,3 +7,14 @@ where statis_date >='20160101' and statis_date <='20171231' and regexp_replace(s
 ) as a
 group by a.GDS_ID,a.statis_date order by a.GDS_ID,a.statis_date
 ) b where num>600
+
+//=================================================分隔线===============================================================
+select *,sum(b.sum) over(partition by gds_id) sumsum from
+(
+select GDS_ID,statis_date,sum(a.TOT_QTY) as sum,count(1) over(partition by gds_id ) as num from
+(
+  select GDS_ID,TOT_QTY,statis_date from SOPDM.TDM_ML_OR_ORDER_D
+  where statis_date >='20160101' and statis_date <='20171231' and regexp_replace(substr(pay_time,1,10),'-','')=statis_date
+) as a
+group by a.GDS_ID,a.statis_date order by a.GDS_ID,a.statis_date
+) b where num>600 order by sumsum desc
