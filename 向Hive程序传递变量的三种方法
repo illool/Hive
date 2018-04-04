@@ -1,0 +1,72 @@
+使用Hive编写程序最常用的方法是将Hive语句写到文件中，然后使用hive -f filename.hql来批量执行查询语句。经常需要将外部参数传入到hql语句中替换其中的变量来动态执行任务，比如动态设定数据库名、表名、时间值、字段序列等变量，以达到脚本泛化执行的目的。
+1) 方法1：字符串、正则、模板引擎等暴力方式替换
+
+最简单也最暴力的方式，是在hql文件中设定{table_name}这样的变量占位符，然后使用调度程序比如shell、python、java语言读取整个hql文件到一个字符串，替换其中的变量。然后使用hive -e cmd_str来执行该Hive命令字符串。举例代码如表格 1和表格 2所示。
+
+表格 1 hive ql文件内容
+
+use test;
+
+select * from student limit {limit_count};
+
+表格 2 Python脚本读取、替换和执行Hive程序
+
+import os
+
+#step1: 读取query.ql整个文件的内容
+
+ql_source=open(“query.ql”,”r”).read()
+
+#step2：替换其中的占位符变量
+
+ql_target=ql_source.replace(“{limit_count}”,”10″)
+
+#step3：使用hive -e的方法执行替换后的Hql语句序列
+
+os.system(“hive -e ‘%s'”%ql_target)
+2) 方法2：使用系统变量或者环境变量
+
+通常情况是使用shell来调度执行hive程序的，Hive提供了可以直接读取系统env和system变量的方法，如表格 3所示。
+
+表格 3 使用env和system读取外部环境变量
+
+use test;
+
+–使用${env:varname}的方法读取shell中export的变量
+
+select * from student limit ${env:g_limit_count};
+
+–使用${system:varname}的方法读取系统的变量
+
+select ${system:HOME} as my_home from student;
+
+这种方式比较好，比如在shell中可以配置整个项目的各种路径变量，hive程序中使用env就可以直接读取这些配置了。
+3) 方法3：在执行Hive命令时传入hivevar和hiveconf
+
+第3中方法是在用hive命令执行hive程序时传递命令行参数，使用-hivevar和-hiveconf两种参数选项给该次执行传入外部变量，其中hivevar是专门提供给用户自定义变量的，而hiveconf则包括了hive-site.xml中配置的hive全局变量。
+
+表格 4 hivevar和hiveconf传递变量的方法
+
+hive -hivevar -f file
+	
+
+hive -hivevar tbname=’a’ -hivevar count=10 -f filename.hql
+
+hive -hivevar -e cmd
+	
+
+hive -hivevar tbname=’a’ -hivevar count=10 -e ‘select * from ${hivevar:tbname} limit ${hivevar:count}’
+
+hive -hiveconf -f file
+	
+
+hive -hiveconf tbname=’a’ – hiveconf count=10 -f filename.hql
+
+hive -hiveconf -e cmd
+	
+
+hive -hiveconf tbname=’a’ -hiveconf count=10 -e ‘select * from ${hivevar:tbname} limit ${hivevar:count}’
+
+最经常使用的是env和-hivevar方法，前者直接在Hive脚本中读取shell export的变量，后者则对脚本的当前执行进行参数设置。
+
+本文地址：http://www.crazyant.net/1451.html
