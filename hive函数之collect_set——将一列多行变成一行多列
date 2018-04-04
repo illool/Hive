@@ -1,0 +1,33 @@
+hive函数之collect_set——将一列多行变成一行多列：
+一、举例说明：
+有表如下：
+hive> desc gengjin1;
+OK
+imei                 string                                  
+id                   string
+数据如下：
+hive> select * from gengjin1;
+OK
+aaa x_x_x
+bbb y_y_y
+aaa 333
+bbb 444
+现在要将同一imei不同id的字段分成多列来显示并插入到新表中，如下格式：
+aaa x_x_x 333
+bbb y_y_y 444
+二、实现
+建表gengjin2结构如下：
+hive> desc gengjin2;
+OK
+imei                 string                                  
+id1                 string                                  
+id2                 string
+插入数据：
+insert overwrite table gengjin2 select imei,id[0],id[1] from (
+select imei,collect_set(id) as id from gengjin1 group by imei
+) a;
+查看结果：
+hive> select * from gengjin2;
+OK
+aaa x_x_x 333
+bbb y_y_y 444
