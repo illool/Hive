@@ -1,0 +1,213 @@
+Hive Shell常用操作：
+1.Hive非交互模式常用命令：
+
+　　1) hive -e：从命令行执行指定的HQL，不需要分号：
+
+% hive -e 'select * from dummy' > a.txt
+
+　　2) hive –f： 执行HQL脚本
+
+% hive -f /home/my/hive-script.sql  --hive-script.sql是hql脚本文件
+
+　　3) hive -i：进入Hive交互Shell时候先执行脚本中的HQL语句
+
+% hive -i /home/my/hive-init.sql 
+
+　　4) hive -v：冗余verbose模式，额外打印出执行的HQL语句
+
+　　5) hive -S：静默Slient模式，不显示转化MR-Job的信息，只显示最终结果
+
+% hive -S -e ‘select * from student’
+
+　　6)hive --hiveconf <property=value>：使用给定属性的值 
+
+$HIVE_HOME/bin/hive --hiveconf mapred.reduce.tasks=2 //启动时,配置reduce个数2（只在此session中有效）
+
+　　7)hive --service serviceName：启动服务
+
+　　8)hive [--database test]：进入CLI交互界面，默认进入default数据库。加上[]内容直接进入test数据库。
+
+%hive --database test
+
+3.Hive的交互模式下命令： 
+
+quit / exit：退出CLI
+
+reset：重置所有的配置参数，初始化为hive-site.xml中的配置。如之前使用set命令设置了reduce数量。
+
+set <key>=<value>：设置Hive运行时配置参数，优先级最高，相同key，后面的设置会覆盖前面的设置。
+
+set –v：打印出所有Hive的配置参数和Hadoop的配置参数。
+
+//找出和"mapred.reduce.tasks"相关的设置
+hive -e 'set -v;' | grep mapred.reduce.tasks
+
+add命令：包括add File[S]/Jar[S]/Archive[S] <filepath> *，向 DistributeCache 中添加一个或过个文件、jar包、或者归档，添加之后，可以在Map和Reduce task中使用。比如，自定义一个udf函数，打成jar包，在创建函数之前，必须使用add jar命令，将该jar包添加，否则会报错找不到类。
+
+list 命令：包括list File[S]/Jar[S]/Archive[S]。列出当前DistributeCache中的文件、jar包或者归档。
+
+delete 命令：包括 delete File[S]/Jar[S]/Archive[S] <filepath>*。从DistributeCache中删除文件。
+复制代码
+
+//将file加入缓冲区
+add file /root/test/sql;
+
+//列出当前缓冲区内的文件
+list file;
+
+//删除缓存区内的指定file
+delete file /root/test/sql;
+
+create命令：创建自定义函数：hive> create temporary function udfTest as ‘com.cstore.udfExample’;
+
+source <filepath>：在CLI中执行脚本文件。
+
+//相当于[root@ncst test]# hive -S -f /root/test/sql
+hive> source /root/test/sql; 
+
+! <command>：在CLI执行Linux命令。
+
+dfs <dfs command>：在CLI执行hdfs命令
+
+4.保存查询结果の三种方式：
+
+% hive -S -e 'select * from dummy' > a.txt //分隔符和hive数据文件的分隔符相同
+
+[root@hadoop01 ~]# hive -S -e "insert overwrite local directory '/root/hive/a'\ 
+>  row format delimited fields terminated by '\t' --分隔符\t
+>  select * from logs sort by te" 
+
+--使用hdfs命令导出整个表数据
+hdfs dfs -get /hive/warehouse/hive01 /root/test/hive01 
+
+5.Hive集群间的导入和导出
+
+使用Export命令会导出Hive表的数据表数据以及数据表对应的元数据
+复制代码
+
+--导出命令
+EXPORT TABLE test TO '/hive/test_export'
+
+--dfs命令查看
+hdfs dfs -ls /hive/test_export
+
+--结果显示
+/hive/test_export/_metadata
+/hive/test_export/data
+
+复制代码
+
+使用Import命令将导出的数据重新导入到hive中(必须将现导入的表重命名)
+复制代码
+
+--导入到内部表的命令
+IMPORT TABLE data_managed FROM '/hive/test_export'
+
+--导入到外部表的命令
+Import External Table data_external From '/hive/test_export' Location '/hive/external/data'
+
+--验证是否是外部表
+desc formatted data_external
+
+复制代码
+
+6.Hive - JDBC/ODBC  
+
+在Hive的jar包中，"org.apache.hadoop.hive.jdbc.HiveDriver"负责提供 JDBC 接口，客户端程序有了这个包，就可以把 Hive 当成一个数据库来使用，大部分的操作与对传统数据库的操作相同，Hive 允许支持 JDBC 协议的应用程序连接到 Hive。当 Hive 在指定端口启动 hiveserver 服务后，客户端通过 Java 的 Thrift 和 Hive 服务器进行通信。过程如下：
+
+　　1.开启 hiveserver 服务：$ hive –service hiveserver 50000（50000）  
+
+　　2.建立与 Hive 的连接：Class.forName(“org.apache.hadoop.hive.jdbc.HiveDriver”);  
+
+　　　　 Connection con= DriverManager.getConnection(“jdbc:hive://ip:50000/default,”hive”,”hadoop”) 
+
+　　　　 默认只能连接到 default 数据库，通过上面的两行代码建立连接后，其他的操作与传统数据库无太大差别。
+
+　　3.Hive 的 JDBC 驱动目前还不太成熟，并不支持所有的 JDBC API。
+
+7.Hive Web Interface
+
+　　1.配置hive-site.xml
+复制代码
+
+        <property>
+        <name>hive.hwi.war.file</name>
+        <value>lib/hive-hwi-0.8.1.war</value>
+        <description>This sets the path to the HWI war file, relative to ${HIVE_HOME}.</description>    
+        </property>
+        
+        <property>
+        <name>hive.hwi.listen.host</name>
+        <value>0.0.0.0</value>
+        <description>This is the host address the Hive Web Interface will listen on</description>
+        </property>
+        
+        <property>
+        <name>hive.hwi.listen.port</name>
+        <value>9999</value>
+        <description>This is the port the Hive Web Interface will listen on</description>
+        </property>
+
+复制代码
+
+　　2.启动Hive的Web服务：hive --service hwi  
+
+　　3.在浏览器键入地址：http://host_name:9999/hwi访问  
+
+　　4.点击“Create Session”创建会话，在Query中键入查询语句 
+
+8. Hive创建数据库
+
+hive启动后默认有一个Default数据库，也可以人为的新建数据库，命令： 
+
+--手动指定存储位置
+create database hive02 location '/hive/hive02';
+
+--添加其他信息(创建时间及数据库备注)
+create database hive03 comment 'it is my first database' with dbproperties('creator'='kafka','date'='2015-08-08');
+
+--查看数据库的详细信息
+describe database hive03;
+--更详细的查看
+describe database extended hive03; 
+--最优的查看数据库结构的命令
+describe database formatted hive03;
+
+--database只能修改dbproperties里面内容
+alter database hive03 set dbproperties('edited-by'='hanmeimei');
+
+复制代码
+分类: Hive
+
+    hive执行脚本
+
+        hive -e “sql语句”
+        会将查询的结果打印在控制台上。
+        脚本查询
+
+        hive -e “sql语句” >> xxx
+        会将查询的结果重定向到xxx文件中，会显示OK和抓取的数据条数
+        重定向
+
+        hive -S -e “sql语句” >> xxx
+        会将查询的结果重定向到xxx文件中，不会显示OK和抓取的数据条数
+        安静执行
+
+        hive -f sqlfile
+        执行文件中的sql（用于sql比较长的时候）， 执行完后就退出
+        文件执行
+
+        hive -i sqlfile
+        执行文件中的sql（用于sql比较长的时候）， 执行完后就不退出，还可继续执行其他sql。在这种模式下若还要去执行其他文件中的sql， 需要在hive模式中使用 source sqlfile 来配合。
+        执行其他sql
+
+    hive与linux交互
+    例如：当我们使用hive -i sqlfile时，已经进入hive模式中，这时候需要去执行其他的sqlfile，但是不知道sqlfile在什么路径下,这样就显得很尴尬了。
+    在hive模式下使用   ! + linux 命令;
+    配合linux命令
+
+    hive与hdfs交互
+    由于hive已经是运行在hadoop上所以直接可以使用  dfs + hdfs命令;
+    与hdfs交互
+
+https://blog.csdn.net/zz657114506/article/details/53576711 
