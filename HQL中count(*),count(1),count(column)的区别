@@ -1,0 +1,4 @@
+count(*)：所有行进行统计，包括NULL行
+count(1)：所有行进行统计，包括NULL行
+count(column)：对column中非Null进行统计
+count(distinct column)：对column中非Null进行去重统计
