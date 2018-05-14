@@ -1,0 +1,9 @@
+cast(date as date)	返回date类型
+
+cast(timestamp as date)	timestamp中的年/月/日的值是依赖与当地的时区，结果返回date类型
+
+cast(string as date)	如果string是YYYY-MM-DD格式的，则相应的年/月/日的date类型的数据将会返回；但如果string不是YYYY-MM-DD格式的，结果则会返回NULL。
+
+cast(date as timestamp)	基于当地的时区，生成一个对应date的年/月/日的时间戳值
+
+cast(date as string)	date所代表的年/月/日时间将会转换成YYYY-MM-DD的字符串。
