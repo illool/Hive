@@ -1,0 +1,23 @@
+第一种：IF
+
+Example: IF(1=1, 'working', 'not working') returns 'working'
+
+第二种：COALESCE
+
+这个词优点不好记啊。
+
+它返回第一个不为NULL的值。
+
+Example: COALESCE(NULL,NULL,5,NULL,4) returns 5
+
+第三种：CASE WHEN THEN END
+
+CASE   [ expression ]
+       WHEN condition1 THEN result1
+       WHEN condition2 THEN result2
+       ...
+       WHEN conditionn THEN resultn
+       ELSE result
+END
+
+第四种：如果有更复杂的逻辑就用udf吧。
