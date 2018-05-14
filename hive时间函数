@@ -1,0 +1,94 @@
+1.日期函数 to_date(string expr)
+返回类型：string
+描述：返回时间字符串日期部分
+to_date(expr) - Extracts the date part of the date or datetime expression expr
+实例：
+hive> select to_date('2017-1-13 16:13:01') ;
+2017-01-13
+
+2.年份函数 year(string expr)
+返回类型：int
+描述：返回时间字符串年份数字
+year(date) - Returns the year of date
+实例：
+hive> select year('2017-1-13 16:13:01') ; // 2017
+2017
+
+3.月份函数 month(string expr)
+返回类型：int
+描述：返回时间字符串月份数字
+month(date) - Returns the month of date
+实例：
+hive> select month('2017-1-13 16:13:01') ;
+01
+
+4.天函数 day(string expr)
+返回类型：int
+描述：返回时间字符串的天
+day(date) - Returns the date of the month of date
+实例：
+hive> select day('2017-1-13 16:13:01') ;
+13
+
+5.小时函数 hour(string expr)
+返回类型：int
+描述：返回时间字符串小时数字
+hour(date) - Returns the hour of date
+实例：
+hive> select hour('2017-1-13 16:13:01')  ;
+16
+
+6.分钟函数 hour(string expr)
+返回类型：int
+描述：返回时间字符串分钟数字
+minute(date) - Returns the minute of date
+实例：
+hive> select minute('2017-1-13 16:13:01') ;
+13
+
+7.秒函数 second(string expr)
+返回类型：int
+描述：返回时间字符串分钟数字
+second(date) - Returns the second of date
+实例：
+hive> select second('2017-1-13 16:13:01');
+01
+ 
+8.日期增加函数 date_add(start_date, num_days)
+返回类型：string
+描述：返回增加num_days 天数的日期（负数则为减少）
+date_add(start_date, num_days) - Returns the date that is num_days after start_date.
+实例：
+hive>select date_add('2014-09-16 15:50:08.119',10) from default.dual;
+2014-09-26
+hive>select date_add('2014-09-16 15:50:08.119',-10) from default.dual;
+2014-09-06
+
+9.日期减少函数 date_sub(start_date, num_days)
+返回类型：string
+描述：返回num_days 天数之前的日期（负数则为增加）
+date_sub(start_date, num_days) - Returns the date that is num_days before start_date.
+实例：
+hive>select date_sub('2014-09-16 15:50:08.119',10) from default.dual;
+2014-09-06
+hive>select date_sub('2014-09-16 15:50:08.119',-10) from default.dual;
+2014-09-26
+ 
+10.周期函数 weekofyear(start_date, num_days)
+返回类型：int
+描述：返回当前日期位于本年的周期 一周一个周期
+weekofyear(date) - Returns the week of the year of the given date. A week is considered to start on a Monday and week 1 is the first week with >3 days.
+实例：
+hive>select weekofyear('2014-09-16 15:50:08.119') from default.dual;
+38
+
+11.日期比较函数 weekofyear(start_date, num_days)
+返回类型：string
+描述：返回2个时间的日期差
+datediff(date1, date2) - Returns the number of days between date1 and date2
+date1-date2
+实例：
+hive>select datediff('2014-09-16 15:50:08.119','2014-09-15') from default.dual;
+1
+
+from：http://blog.csdn.net/lxpbs8851/article/details/39318371
