@@ -1,0 +1,16 @@
+select a.GDS_ID,a.statis_date,a.CITY_CD,a.PV_QTY,a.VISITOR_NUM,a.OOS_PV_QTY,a.ONE_PV_PUV_FLAG,a.VISITORS,b.OLD_UV from 
+(select a.GDS_ID as GDS_ID,a.statis_date as statis_date,a.CITY_CD as CITY_CD,sum(a.PV_QTY) as PV_QTY,count(distinct a.VISITOR_ID) as VISITOR_NUM,count(a.OOS_PV_QTY) as OOS_PV_QTY,
+count(distinct if(a.ONE_PV_PUV_FLAG=1,visit_id,null)) as ONE_PV_PUV_FLAG,count(distinct a.VISIT_ID) as VISITORS
+from sopdm.TDM_ML_BR_CUST_VISIT_D as a where a.statis_date =='20170108' 
+and a.BUSI_TP_ID in ('Z-SHIP','-') and a.GDS_ID != '-' and a.city_cd!='-'
+group by a.GDS_ID,a.statis_date,a.CITY_CD order by a.statis_date) a
+left join(
+select gds_id,city_cd,sum(case when old_visitor != 0 and new_visitor != 0 then 1 else 0 end) as OLD_UV from(
+select gds_id,city_cd,visitor_id,max(case when statis_date between '20170101' and '20170107' then 1 else 0 end) old_visitor,
+max(case when statis_date == '20170108' then 1 else 0 end) new_visitor  
+from sopdm.TDM_ML_BR_CUST_VISIT_D where statis_date between '20170101' and '20170108' and GDS_ID != '-' and city_cd!='-'
+group by gds_id,city_cd,visitor_id
+) t 
+group by gds_id,city_cd) b
+on
+a.gds_id = b.gds_id and a.city_cd = b.city_cd
