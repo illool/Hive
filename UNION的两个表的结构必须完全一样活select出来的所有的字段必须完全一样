@@ -1,0 +1,9 @@
+UNION的两个表的结构必须完全一样活select出来的所有的字段必须完全一样
+
+SELECT Date,Sales FROM Store_Info
+UNION
+SELECT Date,Sales FROM Internet_Sales
+
+SELECT Date,Sales FROM Store_Info
+UNION all
+SELECT Date,Sales FROM Internet_Sales
