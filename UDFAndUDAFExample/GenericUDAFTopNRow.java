@@ -55,21 +55,28 @@ public class GenericUDAFTopNRow extends AbstractGenericUDAFResolver {
 		StandardStructObjectInspector partialElemOI;
 
 		@Override
+		//ObjectInspector用来帮助用户序列化和反序列化对象
 		public ObjectInspector init(Mode m, ObjectInspector[] parameters) throws HiveException {
 			super.init(m, parameters);
-			if (m == Mode.PARTIAL1 || m == Mode.COMPLETE) {
+			if (m == Mode.PARTIAL1 || m == Mode.COMPLETE) {//map阶段不需要输出流得初始化
+				//有多少个parameters就应该有多少个ObjectInspector
 				this.originalOI = new ObjectInspector[parameters.length];
 				System.arraycopy(parameters, 0, this.originalOI, 0, parameters.length);
+				//有多少个参数对象
 				this.size = parameters.length - 1;
+				//有多少个参数就有多少个域名
 				this.fieldNM = new String[this.size];
+				//有多少个参数就有多少个参数名字被记录
 				this.fieldOI = new ObjectInspector[this.size];
 				for (int i = 0; i < this.size; i++) {
+					//给域名赋值
 					this.fieldNM[i] = "f" + i;
+					//参数名字赋值
 					this.fieldOI[i] = ObjectInspectorUtils.getStandardObjectInspector(parameters[i + 1]);
 				}
 				return ObjectInspectorFactory.getStandardListObjectInspector(ObjectInspectorFactory
 						.getStandardStructObjectInspector(Arrays.asList(this.fieldNM), Arrays.asList(this.fieldOI)));
-			} else if (m == Mode.PARTIAL2 || m == Mode.FINAL) {
+			} else if (m == Mode.PARTIAL2 || m == Mode.FINAL) {//主要是要考虑输出流得初始化
 				this.partialOI = (StandardListObjectInspector) parameters[0];
 				this.partialElemOI = (StandardStructObjectInspector) this.partialOI.getListElementObjectInspector();
 				List<? extends StructField> structFieldRefs = this.partialElemOI.getAllStructFieldRefs();
@@ -103,14 +110,14 @@ public class GenericUDAFTopNRow extends AbstractGenericUDAFResolver {
 
 		@Override
 		public void iterate(AggregationBuffer agg, Object[] parameters) throws HiveException {
-			/* 如果查询结果为空,不作处理 */
 			if (isEmptySet(agg, parameters)) {
 				return;
 			}
 			TopNBuffer buffer = (TopNBuffer) agg;
+			//有n个值应该放在里面
 			int n = ((WritableIntObjectInspector) this.originalOI[0]).get(parameters[0]);
-			int s = buffer.container.size();
-			if (s < n) {
+			int s = buffer.container.size();//现在有s个
+			if (s < n) {//要是不够n个
 				Object[] elemVal = new Object[this.size];
 				for (int j = 0; j < this.size; j++) {
 					elemVal[j] = ObjectInspectorUtils.copyToStandardObject(parameters[j + 1], this.originalOI[j + 1]);
