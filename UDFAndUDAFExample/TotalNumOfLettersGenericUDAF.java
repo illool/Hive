@@ -103,6 +103,7 @@ public class TotalNumOfLettersGenericUDAF extends AbstractGenericUDAFResolver {
         private boolean warned = false;
 
         @Override
+        //for map step
         public void iterate(AggregationBuffer agg, Object[] parameters)
                 throws HiveException {
             assert (parameters.length == 1);
@@ -114,6 +115,7 @@ public class TotalNumOfLettersGenericUDAF extends AbstractGenericUDAFResolver {
         }
 
         @Override
+        //after iterate
         public Object terminatePartial(AggregationBuffer agg) throws HiveException {
             LetterSumAgg myagg = (LetterSumAgg) agg;
             total += myagg.sum;
@@ -121,6 +123,7 @@ public class TotalNumOfLettersGenericUDAF extends AbstractGenericUDAFResolver {
         }
 
         @Override
+        //for reduce step or combine step after terminatePartial
         public void merge(AggregationBuffer agg, Object partial)
                 throws HiveException {
             if (partial != null) {
@@ -137,6 +140,7 @@ public class TotalNumOfLettersGenericUDAF extends AbstractGenericUDAFResolver {
         }
 
         @Override
+        //after merge
         public Object terminate(AggregationBuffer agg) throws HiveException {
             LetterSumAgg myagg = (LetterSumAgg) agg;
             total = myagg.sum;
