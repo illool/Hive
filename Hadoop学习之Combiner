@@ -1,0 +1,25 @@
+在Hadoop中，有一种处理过程叫Combiner，与Mapper和Reducer在处于同等地位，但其执行的时间介于Mapper和Reducer之间，其实就是Mapper和Reducer的中间处理过程，Mapper的输出是Combiner的输入，Combiner的输出是Reducer的输入。
+例如获取历年的最高温度例子，以书中所说的1950年为例，在两个不同分区上的Mapper计算获得的结果分别如下：
+第一个Mapper结果：(1950, [0, 10, 20])
+第二个Mapper结果：(1950, [25, 15])
+如果不考虑Combiner，按照正常思路，这两个Mapper的结果将直接输入到Reducer中处理，如下所示：
+MaxTemperature：(1950, [0, 10, 20, 25, 15])
+最终获取的结果是25。
+如果考虑Combiner，按照正常思路，这两个Mapper的结果将分别输入到两个不同的Combiner中处理，获得的结果分别如下所示：
+第一个Combiner结果：(1950, [20])
+第二个Combiner结果：(1950, [25])
+然后这两个Combiner的结果会输出到Reducer中处理，如下所示
+MaxTemperature：(1950, [20, 25])
+最终获取的结果是25。
+由上可知：这两种方法的结果是一致的，使用Combiner最大的好处是节省网络传输的数据，这对于提高整体的效率是非常有帮助的。
+但是，并非任何时候都可以使用Combiner处理机制，例如不是求历年的最高温度，而是求平均温度，则会有另一种结果。同样，过程如下，
+如果不考虑Combiner，按照正常思路，这两个Mapper的结果将直接输入到Reducer中处理，如下所示：
+AvgTemperature：(1950, [0, 10, 20, 25, 15])
+最终获取的结果是14。
+如果考虑Combiner，按照正常思路，这两个Mapper的结果将分别输入到两个不同的Combiner中处理，获得的结果分别如下所示：
+第一个Combiner结果：(1950, [10])
+第二个Combiner结果：(1950, [20])
+然后这两个Combiner的结果会输出到Reducer中处理，如下所示
+AvgTemperature：(1950, [10, 20])
+最终获取的结果是15。
+由上可知：这两种方法的结果是不一致的，所以在使用Combiner时，一定三思而后行，仔细思量其是否适合，否则可能造成不必要的麻烦。
