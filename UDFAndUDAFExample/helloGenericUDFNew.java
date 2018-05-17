@@ -33,7 +33,7 @@ import java.util.ArrayList;
  *	hive> create temporary function hellonew as 'com.wz.udf.helloGenericUDFNew';
  *  hive> select hellonew(tb_test2.name,tb_test2.score_list) from tb_test2; 
  *  {"people":"A","totalscore":275}
- *	 {"people":"B","totalscore":275}
+ *	{"people":"B","totalscore":275}
  *  {"people":"C","totalscore":270}
  */
 public class helloGenericUDFNew extends GenericUDF {
