@@ -110,8 +110,7 @@ public class GenericUDAFAverage extends AbstractGenericUDAFResolver {
 		@Override
 		//重写doMerge接口
 		//调用Merge时候在AbstractGenericUDAFAverageEvaluator(父类)中被调用
-		protected void doMerge(AverageAggregationBuffer<Double> aggregation, Long partialCount,
-				ObjectInspector sumFieldOI, Object partialSum) {
+		protected void doMerge(AverageAggregationBuffer<Double> aggregation, Long partialCount,ObjectInspector sumFieldOI, Object partialSum) {
 			double value = ((DoubleObjectInspector) sumFieldOI).get(partialSum);
 			aggregation.count += partialCount;
 			aggregation.sum += value;
@@ -279,13 +278,14 @@ public class GenericUDAFAverage extends AbstractGenericUDAFResolver {
 		@Override
 		public ObjectInspector init(Mode m, ObjectInspector[] parameters) throws HiveException {
 			assert (parameters.length == 1);
+			//mode=m
 			super.init(m, parameters);
 
 			// init input
 			if (mode == Mode.PARTIAL1 || mode == Mode.COMPLETE) {//map的过程的时候只有输入的流就可以实现
 				inputOI = (PrimitiveObjectInspector) parameters[0];
 			} else {//reduce过程需要配置输出流和输入流 
-				soi = (StructObjectInspector) parameters[0];//这个是map的结果流
+				soi = (StructObjectInspector) parameters[0];//这个是map的结果流，就是下面的return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
 				countField = soi.getStructFieldRef("count");//从map给的流中得到count(计数器)的域
 				sumField = soi.getStructFieldRef("sum");//从map给的流中得到sum(计数器)的域
 				countFieldOI = (LongObjectInspector) countField.getFieldObjectInspector();//从map给的流中得到count(计数器)的域中得到countFieldOI流
@@ -299,7 +299,7 @@ public class GenericUDAFAverage extends AbstractGenericUDAFResolver {
 				// a "long" count and a "double" sum.
 				ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
 				foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-				foi.add(getSumFieldWritableObjectInspector());//输入流
+				foi.add(getSumFieldWritableObjectInspector());
 				// We need to "remember" the input object inspector so that we need to know the
 				// input type
 				// in order to determine the sum field type (precision/scale) for Mode.PARTIAL2
@@ -310,7 +310,7 @@ public class GenericUDAFAverage extends AbstractGenericUDAFResolver {
 				fname.add("sum");
 				fname.add("input");
 				partialResult = new Object[2];
-				partialResult[0] = new LongWritable(0);
+				partialResult[0] = new LongWritable(0);//0位置放的是count
 				// index 1 set by child
 				return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
 			} else {
@@ -342,6 +342,7 @@ public class GenericUDAFAverage extends AbstractGenericUDAFResolver {
 			if (parameter != null) {
 				AverageAggregationBuffer<TYPE> averageAggregation = (AverageAggregationBuffer<TYPE>) aggregation;
 				try {
+					//要从inputOI中得到parameter的值
 					doIterate(averageAggregation, inputOI, parameter);
 				} catch (NumberFormatException e) {
 					if (!warned) {
@@ -359,11 +360,13 @@ public class GenericUDAFAverage extends AbstractGenericUDAFResolver {
 		}
 
 		@Override
-		public void merge(AggregationBuffer aggregation, Object partial) throws HiveException {
+		public void merge(AggregationBuffer aggregation, Object partial) throws HiveException {//这里的partial就是partialResult=Object[2]
 			if (partial != null) {
-				doMerge((AverageAggregationBuffer<TYPE>) aggregation,
-						countFieldOI.get(soi.getStructFieldData(partial, countField)), sumFieldOI,
-						soi.getStructFieldData(partial, sumField));
+				//countField = soi.getStructFieldRef("count");//从map给的流中得到count(计数器)的域
+				//countFieldOI = (LongObjectInspector) countField.getFieldObjectInspector();//从map给的流中得到count(计数器)的域中得到countFieldOI流
+				//doMerge(AverageAggregationBuffer<Double> aggregation, Long partialCount,ObjectInspector sumFieldOI, Object partialSum)
+				//                                                                   (Object data, StructField fieldRef)
+				doMerge((AverageAggregationBuffer<TYPE>) aggregation,countFieldOI.get(soi.getStructFieldData(partial, countField)), sumFieldOI,soi.getStructFieldData(partial, sumField));
 			}
 		}
 
