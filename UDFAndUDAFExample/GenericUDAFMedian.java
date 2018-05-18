@@ -83,24 +83,26 @@ public class GenericUDAFMedian extends AbstractGenericUDAFResolver {
 			listOI = ObjectInspectorFactory
 					.getStandardListObjectInspector(PrimitiveObjectInspectorFactory.writableIntObjectInspector);
 			// init input
-			if (m == Mode.PARTIAL1 || m == Mode.COMPLETE) {
+			if (m == Mode.PARTIAL1 || m == Mode.COMPLETE) {//map阶段的时候，输入只是Primitive的一个数据而已
+				//输入就是一个参数的Primitive类型的数据
 				inputOI = (PrimitiveObjectInspector) parameters[0];
-			} else {
-				structOI = (StructObjectInspector) parameters[0];
-				listField = structOI.getStructFieldRef("list");
-				listFieldOI = (ListObjectInspector) listField.getFieldObjectInspector();
+			} else {//reduce阶段的时候
+				structOI = (StructObjectInspector) parameters[0];//输入是一个Struct结构体
+				listField = structOI.getStructFieldRef("list");//Struct结构体里面有个list属性，设置该属性名为"list"
+				listFieldOI = (ListObjectInspector) listField.getFieldObjectInspector();//得到list属性的解析器
 			}
 
 			// init output
-			if (m == Mode.PARTIAL1 || m == Mode.PARTIAL2) {
-				ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
+			if (m == Mode.PARTIAL1 || m == Mode.PARTIAL2) {//在map和reduce阶段是需要有输出的
+				ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();//属性定义表
 				foi.add(listOI);
 				ArrayList<String> fname = new ArrayList<String>();
 				fname.add("list");
 				partialResult = new Object[1];
 				partialResult[0] = new ArrayList<IntWritable>();
+				//里面放的就是listOI->list,后面通过属性名得到这个listOI
 				return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
-			} else {
+			} else {//在不需要输出的情况下直接是double类型的解析器
 				return PrimitiveObjectInspectorFactory.writableDoubleObjectInspector;
 			}
 
@@ -127,6 +129,7 @@ public class GenericUDAFMedian extends AbstractGenericUDAFResolver {
 		boolean warned = false;
 
 		@Override
+		// map阶段，迭代处理输入sql传过来的列数据  
 		public void iterate(AggregationBuffer agg, Object[] parameters) throws HiveException {
 			assert (parameters.length == 1);
 			if (parameters[0] != null) {
@@ -144,13 +147,16 @@ public class GenericUDAFMedian extends AbstractGenericUDAFResolver {
 					}
 
 				}
+				//降数据放在list中去
 				medianNumberAgg.aggIntegerList.add(new IntWritable(val));
 			}
 		}
 
 		@SuppressWarnings("unchecked")
 		@Override
+		// reducer阶段，输出最终结果  
 		public Object terminate(AggregationBuffer agg) throws HiveException {
+			//result就是double
 			MedianNumberAgg medianNumberAgg = (MedianNumberAgg) agg;
 			Collections.sort(medianNumberAgg.aggIntegerList);
 			int size = medianNumberAgg.aggIntegerList.size();
@@ -172,14 +178,17 @@ public class GenericUDAFMedian extends AbstractGenericUDAFResolver {
 		}
 
 		@Override
+		// map与combiner结束返回结果，得到部分数据聚集结果 
 		public Object terminatePartial(AggregationBuffer agg) throws HiveException {
 			MedianNumberAgg medianNumberAgg = (MedianNumberAgg) agg;
+			//将部分的聚集结果放在partialResult中去，后面的merge会用到这个partialResult
 			partialResult[0] = new ArrayList<IntWritable>(medianNumberAgg.aggIntegerList.size());
 			((ArrayList<IntWritable>) partialResult[0]).addAll(medianNumberAgg.aggIntegerList);
 			return partialResult;
 		}
 
 		@Override
+		// combiner合并map返回的结果，还有reducer合并mapper或combiner返回的结果。 
 		public void merge(AggregationBuffer agg, Object partial) throws HiveException {
 			MedianNumberAgg medianNumberAgg = (MedianNumberAgg) agg;
 			Object partialObject = structOI.getStructFieldData(partial, listField);
