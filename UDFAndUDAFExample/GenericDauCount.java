@@ -19,8 +19,8 @@
  * 使用示例:
  *      > SELECT flag, uid, imei FROM test;
  *      1   uid1 imei1
- *      1   uid2 imei1   
- *      0   uid3 imei3   
+ *      1   uid2 imei1
+ *      0   uid3 imei3
  * 
  *      > SELECT daucount(flag,uid,imei) FROM test;
  *      1
@@ -150,7 +150,7 @@ public class GenericDauCount extends AbstractGenericUDAFResolver {
                 flagIO = (IntObjectInspector) parameters[0];
                 uidIO = (StringObjectInspector) parameters[1];
                 imeiIO = (StringObjectInspector) parameters[2];
-            } else { // for merge
+            } else { // for merge,map
                 map2red = (StructObjectInspector) parameters[0];
                 uidSetField = map2red.getStructFieldRef("uidSet");
                 imeiSetField = map2red.getStructFieldRef("imeiSet");
@@ -179,9 +179,10 @@ public class GenericDauCount extends AbstractGenericUDAFResolver {
                 fname.add("uidSet");
                 fname.add("imeiSet");
                 fname.add("imeiMap");
+                //生成上面的map2red(StructObjectInspector)
                 return ObjectInspectorFactory.getStandardStructObjectInspector(
                         fname, foi);
-            } else {
+            } else {//reduce
                 return PrimitiveObjectInspectorFactory.javaLongObjectInspector;
             }
         }
@@ -218,7 +219,7 @@ public class GenericDauCount extends AbstractGenericUDAFResolver {
         public Object terminatePartial(AggregationBuffer agg)
                 throws HiveException {
             DivideAB myagg = (DivideAB) agg;
-            // 存储中间结果
+            // 存储中间结果,partialResult就是merge时使用的partial
             Object[] partialResult = new Object[3];
             partialResult[0] = new ArrayList<String>(myagg.uidSet);
             partialResult[1] = new ArrayList<String>(myagg.imeiSet);
@@ -232,6 +233,7 @@ public class GenericDauCount extends AbstractGenericUDAFResolver {
                 throws HiveException {
             if (partial != null) {
                 DivideAB dab = (DivideAB) agg;
+                //得到map2red中不同的解析器，两个set和一个ma
                 Object uidSet = map2red
                         .getStructFieldData(partial, uidSetField);
                 Object imeiSet = map2red.getStructFieldData(partial,
