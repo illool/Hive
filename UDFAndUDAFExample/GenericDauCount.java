@@ -1,17 +1,17 @@
 /**
- * 在做运营统计的时候，一个最常见的指标是日活跃用户数（DAU），它的一般性概念为当日所有用户的去重，但是在大部分情况下，我们获取到的数据中会有登录用户与有匿名
- * 用户，而这部分用户是会出现重叠的。常规的做法是利用cookie或者imei（移动端）进行自关联，然后算出有多少用户同时是登录用户和匿名用户，最终的 日活跃用户数 
+ * 在做运营统计的时候，一个最常见的指标是日活跃用户数(DAU)，它的一般性概念为当日所有用户的去重，但是在大部分情况下，我们获取到的数据中会有登录用户与有匿名
+ * 用户，而这部分用户是会出现重叠的。常规的做法是利用cookie或者imei(移动端)进行自关联，然后算出有多少用户同时是登录用户和匿名用户，最终的 日活跃用户数 
  * = 登录用户+匿名用户-匿名转登录用户。
  * 根据flag,uid和imei信息计算个数
- * -fla为1    ： 将对应的UID存储在UID集合中，该集合代表登录用户
+ * -flag为1	  ： 将对应的UID存储在UID集合中，该集合代表登录用户
  * -flag不为1 ： 将对应的imei|wyy存储在IMEI集合中，该集合代表匿名用户
  * 将imei|wyy存储一个Map当中，并且判断该imei|wyy对应的flag是否同时出现过0和1俩个值，如果是则map中对应的value = 2否则为flag
  * 参数原型:
  *      int itemcount(flag,uid,imei)
  * 参数说明:
  *      flag: 1或者不为1
- *      uid: 用户id
- *      imei: 用户的第二个参照标识（imei|wyy|cookie)
+ *      uid	: 用户id
+ *      imei: 用户的第二个参照标识(imei|wyy|cookie)
  *      
  * 返回值:
  *      int类型，dau值
@@ -105,11 +105,13 @@ public class GenericDauCount extends AbstractGenericUDAFResolver {
         StructObjectInspector map2red;
 
         // for PARTIAL1 and COMPLETE
+        // map阶段的时候的输入流,就是三个列的输入
         IntObjectInspector flagIO;
         StringObjectInspector uidIO;
         StringObjectInspector imeiIO;
 
         // for PARTIAL2 and FINAL
+        // 在map和reduce阶段的输入，是uidSet(登陆用户的id)，imeiSet(匿名用户的id)，imeiMap()
         StandardListObjectInspector uidSetIO;
         StandardListObjectInspector imeiSetIO;
         StandardMapObjectInspector imeiMapIO;
@@ -161,8 +163,8 @@ public class GenericDauCount extends AbstractGenericUDAFResolver {
                 imeiMapIO = (StandardMapObjectInspector) imeiMapField
                         .getFieldObjectInspector();
             }
+            // output
             if (m == Mode.PARTIAL1 || m == Mode.PARTIAL2) {
-
                 ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
                 ArrayList<String> fname = new ArrayList<String>();
 
