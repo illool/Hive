@@ -1,0 +1,30 @@
+-- 设置作业名
+set mapred.job.name=TDM_ML_BR_SOP_VISIT_SOURCE_ORD_D(${hivevar:statis_date});
+-- 每个Map最大输入大小
+set mapred.max.split.size = 16000000;
+-- 每个Map最小输入大小
+set mapred.min.split.size = 8000000;
+-- 执行Map前进行小文件合并
+set hive.input.format = org.apache.hadoop.hive.ql.io.CombineHiveInputFormat;
+-- 在Map-only的任务结束时合并小文件
+set hive.merge.mapfiles = true;
+-- 在Map-Reduce的任务结束时合并小文件
+set hive.merge.mapredfiles = true;
+-- 合并文件的大小
+set hive.merge.size.per.task = 16000000;
+set hive.merge.smallfiles.avgsize=16000000;
+-- 设置reducce数量
+set hive.exec.reducers.bytes.per.reducer=16000000;
+-- join倾斜优化
+set hive.optimize.skewjoin=true;
+set hive.skewjoin.key=100000;
+-- group by 倾斜优化
+set hive.groupby.skewindata=true;
+set hive.groupby.mapaggr.checkinterval=100000;
+-- hive自动根据sql，选择使用common join或者map join
+set hive.auto.convert.join = true;
+-- 允许并行执行
+set hive.exec.parallel=true;
+
+--@1.切换schema
+USE SOPDM;
