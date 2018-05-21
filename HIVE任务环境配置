@@ -1,5 +1,5 @@
 -- 设置作业名
-set mapred.job.name=TDM_ML_BR_SOP_VISIT_SOURCE_ORD_D(${hivevar:statis_date});
+set mapred.job.name=tablename(${hivevar:statis_date});
 -- 每个Map最大输入大小
 set mapred.max.split.size = 16000000;
 -- 每个Map最小输入大小
@@ -27,4 +27,4 @@ set hive.auto.convert.join = true;
 set hive.exec.parallel=true;
 
 --@1.切换schema
-USE SOPDM;
+USE databasename;
