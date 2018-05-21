@@ -1,0 +1,11 @@
+nvl(COMMISSION_PCT,0)
+如果第一个参数为null，则返回第二个参数
+如果第一个参数为非null，则返回第一个参数
+
+COALESCE(EXPR1,EXPR2,EXPR3...EXPRn)
+从左往右数，遇到第一个非null值，则返回该非null值。
+多层判断
+
+第一点区别：从上面可以知道，nvl只适合于两个参数的，COALESCE适合于多个参数。
+
+第二点区别：COALESCE里的所有参数类型必须保持一致，nvl可以不一致。
