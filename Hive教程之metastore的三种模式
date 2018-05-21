@@ -1,0 +1,239 @@
+Hive中metastore（元数据存储）的三种方式：
+
+    内嵌Derby方式
+    Local方式
+    Remote方式
+
+[一]、内嵌Derby方式
+
+这个是Hive默认的启动模式，一般用于单元测试，这种存储方式有一个缺点：在同一时间只能有一个进程连接使用数据库。
+
+hive-site.xml 中jdbc URL、驱动、用户名、密码等的配置信息如下：
+ 
+ 
+ 
+ 
+ 
+XHTML
+ 
+<property>
+  <name>javax.jdo.option.ConnectionURL</name>
+  <value>jdbc:derby:;databaseName=metastore_db;create=true</value>
+  <description>JDBC connect string for a JDBC metastore</description>
+</property>
+ 
+<property>
+  <name>javax.jdo.option.ConnectionDriverName</name>
+  <value>org.apache.derby.jdbc.EmbeddedDriver</value>
+  <description>Driver class name for a JDBC metastore</description>
+</property>
+ 
+<property>
+  <name>javax.jdo.option.ConnectionUserName</name>
+  <value>APP</value>
+  <description>username to use against metastore database</description>
+</property>
+ 
+<property>
+  <name>javax.jdo.option.ConnectionPassword</name>
+  <value>mine</value>
+  <description>password to use against metastore database</description>
+</property>
+ 
+<property>
+  <name>hive.metastore.warehouse.dir</name>
+  <value>file:///Users/micmiu/tmp/hive/warehouse</value>
+  <description>unit test data goes in here on your local filesystem</description>
+</property>
+ 
+<!-- micmiu.com -->
+
+执行初始化命令：schematool -dbType derby -initSchema
+
+查看初始化后的信息： schematool -dbType derby -info
+
+配置完成后就可在shell中以CLI的方式访问hive 进行操作验证。
+
+[二]、Local方式
+
+以本地Mysql数据库为例：创建好用户：hive；database：hive。
+
+配置文件 hive-site.xml 中jdbc URL、驱动、用户名、密码等属性值配置如下：
+ 
+ 
+ 
+ 
+ 
+XHTML
+ 
+<property>
+  <name>javax.jdo.option.ConnectionURL</name>
+  <value>jdbc:mysql://localhost/hive?createDatabaseIfNotExist=true</value>
+  <description>JDBC connect string for a JDBC metastore</description>
+</property>
+ 
+<property>
+  <name>javax.jdo.option.ConnectionDriverName</name>
+  <value>com.mysql.jdbc.Driver</value>
+  <description>Driver class name for a JDBC metastore</description>
+</property>
+ 
+<property>
+  <name>javax.jdo.option.ConnectionUserName</name>
+  <value>hive</value>
+  <description>username to use against metastore database</description>
+</property>
+ 
+<property>
+  <name>javax.jdo.option.ConnectionPassword</name>
+  <value>micmiu</value>
+  <description>password to use against metastore database</description>
+</property>
+ 
+<property>
+  <name>hive.metastore.warehouse.dir</name>
+  <!-- base hdfs path -->
+  <value>/user/hive/warehouse</value>
+  <description>location of default database for the warehouse</description>
+</property>
+<!-- micmiu.com -->
+
+ps：需要把mysql的驱动包copy到目录 <HIVE_HOME>/lib 中
+
+如果是第一次需要执行初始化命令：schematool -dbType mysql -initSchema
+
+micmiu-mbp:mysql micmiu$ schematool -dbType mysql -initSchema
+14/02/17 14:46:08 INFO Configuration.deprecation: mapred.input.dir.recursive is deprecated. Instead, use mapreduce.input.fileinputformat.input.dir.recursive
+14/02/17 14:46:08 INFO Configuration.deprecation: mapred.max.split.size is deprecated. Instead, use mapreduce.input.fileinputformat.split.maxsize
+14/02/17 14:46:08 INFO Configuration.deprecation: mapred.min.split.size is deprecated. Instead, use mapreduce.input.fileinputformat.split.minsize
+14/02/17 14:46:08 INFO Configuration.deprecation: mapred.min.split.size.per.rack is deprecated. Instead, use mapreduce.input.fileinputformat.split.minsize.per.rack
+14/02/17 14:46:08 INFO Configuration.deprecation: mapred.min.split.size.per.node is deprecated. Instead, use mapreduce.input.fileinputformat.split.minsize.per.node
+14/02/17 14:46:08 INFO Configuration.deprecation: mapred.reduce.tasks is deprecated. Instead, use mapreduce.job.reduces
+14/02/17 14:46:08 INFO Configuration.deprecation: mapred.reduce.tasks.speculative.execution is deprecated. Instead, use mapreduce.reduce.speculative
+Metastore connection URL: jdbc:mysql://localhost/hive?createDatabaseIfNotExist=true
+Metastore Connection Driver : com.mysql.jdbc.Driver
+Metastore connection User: hive
+Starting metastore schema initialization to 0.12.0
+Initialization script hive-schema-0.12.0.mysql.sql
+Initialization script completed
+schemaTool completeted
+
+查看初始化后信息 schematool -dbType mysql -info
+
+初始化后查看mysql中表情况：show tables;
+ 
+mysql&gt; show tables;
++---------------------------+
+| Tables_in_hive            |
++---------------------------+
+| BUCKETING_COLS            |
+| CDS                       |
+| COLUMNS_V2                |
+| DATABASE_PARAMS           |
+| DBS                       |
+| DB_PRIVS                  |
+| DELEGATION_TOKENS         |
+| GLOBAL_PRIVS              |
+| IDXS                      |
+| INDEX_PARAMS              |
+| MASTER_KEYS               |
+| NUCLEUS_TABLES            |
+| PARTITIONS                |
+| PARTITION_EVENTS          |
+| PARTITION_KEYS            |
+| PARTITION_KEY_VALS        |
+| PARTITION_PARAMS          |
+| PART_COL_PRIVS            |
+| PART_COL_STATS            |
+| PART_PRIVS                |
+| ROLES                     |
+| ROLE_MAP                  |
+| SDS                       |
+| SD_PARAMS                 |
+| SEQUENCE_TABLE            |
+| SERDES                    |
+| SERDE_PARAMS              |
+| SKEWED_COL_NAMES          |
+| SKEWED_COL_VALUE_LOC_MAP  |
+| SKEWED_STRING_LIST        |
+| SKEWED_STRING_LIST_VALUES |
+| SKEWED_VALUES             |
+| SORT_COLS                 |
+| TABLE_PARAMS              |
+| TAB_COL_STATS             |
+| TBLS                      |
+| TBL_COL_PRIVS             |
+| TBL_PRIVS                 |
+| TYPES                     |
+| TYPE_FIELDS               |
+| VERSION                   |
++---------------------------+
+41 rows in set (0.00 sec)
+
+配置完成后就可在shell中以CLI的方式访问hive 进行操作验证。
+
+[三]、Remote方式
+
+以Mysql数据库(192.168.6.77)为例：创建好用户：hive；database：hive_meta。Remote方式需要分别配置服务端和客户端的配置文件：
+
+服务端的 hive-site.xml 中jdbc URL、驱动、用户名、密码等属性值配置如下：
+
+XHTML
+
+<property>
+  <name>javax.jdo.option.ConnectionURL</name>
+  <value>jdbc:mysql://192.168.6.77/hive_meta?createDatabaseIfNotExist=true</value>
+  <description>JDBC connect string for a JDBC metastore</description>
+</property>
+ 
+<property>
+  <name>javax.jdo.option.ConnectionDriverName</name>
+  <value>com.mysql.jdbc.Driver</value>
+  <description>Driver class name for a JDBC metastore</description>
+</property>
+ 
+<property>
+  <name>javax.jdo.option.ConnectionUserName</name>
+  <value>hive</value>
+  <description>username to use against metastore database</description>
+</property>
+ 
+<property>
+  <name>javax.jdo.option.ConnectionPassword</name>
+  <value>micmiu</value>
+  <description>password to use against metastore database</description>
+</property>
+ 
+<property>
+  <name>hive.metastore.warehouse.dir</name>
+  <!-- base hdfs path -->
+  <value>/user/hive/warehouse</value>
+  <description>base hdfs path :location of default database for the warehouse</description>
+</property>
+<!-- micmiu.com -->
+
+ps：需要把mysql的驱动包copy到目录 <HIVE_HOME>/lib 中
+
+如果是第一次需要执行初始化命令：schematool -dbType mysql -initSchema
+
+客户端中配置内容修改如下： 
+ 
+XHTML
+
+<!-- thrift://<host_name>:<port> 默认端口是9083 -->
+<property>
+  <name>hive.metastore.uris</name>
+  <value>thrift://192.168.6.77:9083</value>
+  <description>Thrift uri for the remote metastore. Used by metastore client to connect to remote metastore.</description>
+</property>
+ 
+<!--  hive表的默认存储路径 -->
+<property>
+  <name>hive.metastore.warehouse.dir</name>
+  <value>/user/hive/warehouse</value>
+  <description>location of default database for the warehouse</description>
+</property>
+
+hive metastore 服务端启动命令：
+hive --service metastore -p <port_num>
+如果不加端口默认启动：hive --service metastore，则默认监听端口是：9083 ，注意客户端中的端口配置需要和启动监听的端口一致。服务端启动正常后，客户端就可以执行hive操作了。
