@@ -1,0 +1,39 @@
+在hive sql中使用动态分区非常方便，也比较常用，但是在使用的过程中会带来一些问题，比如：在一段sql语句中我需要指定两个字段当做动态分区，一个字段的基数为7，
+另一个为4，这就是28个分区，我们的sql语句的最后一个job是一个仅有map阶段的任务，数据量大有4000个map，这种情况下map任务在往hive分区中写的时候，每个map几
+乎都要产生28个文件，这样就会产生4000*28个文件，带来大量的小文件。比如如下一个简单的sql:
+
+insert overwrite table test1 partition(week,type)
+select
+    *
+from test_table
+
+这个sql只有map任务，在数据量的情况下可能会产生大量的map，导致产生大量的小文件，实际上不仅仅是最后一个job只有map的任务有影响，reduce同样如此，但是一般情
+况下reduce的数目不会太大，并且reduce数目比较好控制。
+解决方案
+
+1.最后一个阶段只有map，若是有reduce的话，把相同分区的数据发送到一个reduce处理，不就解决了么。因此可以这样
+
+insert overwrite table test1 partition(week,type)
+select
+    *
+from test_table
+DISTRIBUTE BY week,type;
+
+这样的话产生的文件数就等于分区数目了（在不限制reduce的情况下），文件数目大大减小，但是文件数目也太少了吧，并且由于数据分布不均匀，分区下的文件大小差异特
+别大。并且由于不同reduce处理的数据量差异，造成部分reduce执行速度过慢，影响了整体的速度，
+
+2.若是想把数据均匀的分配的reduce上，DISTRIBUTE BY的字段就不能使用分区下的字段，可以使用DISTRIBUTE BY rand(),这样rand取哈希然后对reduce数目取余，保证
+了每条数据分配到所有reduce的可能性是相等的，这样reduce处理的数据量就是均匀的，在数据量比较大的情况下每个reduce产生的文件数为动态分区的个数，产生的文件
+总个数m*分区个数。
+
+set hive.exec.reducers.max=500;
+insert overwrite table test1 partition(week,type)
+select
+    *
+from test_table
+DISTRIBUTE BY rand();
+
+比如上边例子就是 500*7*28个文件，大大减小了文件数。
+
+实际上还有个最笨的方法就是控制map数，但是map数不能够小于文件数，除非进行文件合并(带来额外消耗)，这样的话通过这种方法依赖于上个阶段的文件数目。并且map数
+往往难以控制，若是一个每天执行的任务，数据量每天不一样带来了不确定性。
