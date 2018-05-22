@@ -1,0 +1,12 @@
+步骤:
+1.创建一个dual表
+hive> create table dual(dummy string);
+2.
+创建/home/hadoop/djt/dual.txt
+echo 'X'>>/home/hadoop/djt/dual.txt
+3.把dual.txt导入dual表
+hive> load data local inpath '/home/hadoop/djt/dual.txt' into table dual;
+4.测试
+hive> select length('aades') from dual;  
+OK
+5
