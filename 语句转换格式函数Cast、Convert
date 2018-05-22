@@ -1,0 +1,18 @@
+CAST和CONVERT都经常被使用。特别提取出来作为一篇文章，方便查找。
+　　CAST、CONVERT都可以执行数据类型转换。在大部分情况下，两者执行同样的功能，不同的是CONVERT还提供一些特别的日期格式转换，而CAST没有这个功能。
+　　既然CONVERT包括了CAST的所有功能，而且CONVERT还能进行日期转换，那么为什么需要使用CAST呢?实际上，这是为了ANSI/ISO兼容。CAST是ANSI兼容的，而CONVERT则不是。
+　　语法：
+　　CAST (expression AS data_type [ (length ) ])
+　　CONVERT (data_type [ ( length ) ] , expression [ , style ])
+　　示例：
+　　SELECT 'AB' + 1    --此语句报错，在将 varchar 值 'AB' 转换成数据类型 int 时失败。
+　　SELECT 'AB' + CAST(1 AS varchar)    --输出 AB1
+　　SELECT 'AB' + CONVERT(varchar,1)    --输出 AB1
+　　CAST和CONVERT都能转换时间：
+　　SELECT CONVERT(DateTime,'2011-07-11')    --输出 2011-07-11 00:00:00.00
+　　SELECT CAST('2011-07-11' AS DateTime)    --输出 2011-07-11 00:00:00.000
+　　但是时间转字符串，CAST没有CONVERT这么多花样：
+　　SELECT CONVERT(varchar,GETDATE(),5)    --输出 01-07-13
+　　SELECT CONVERT(varchar,GETDATE(),111)  --输出 2013/07/01
+　　SELECT CONVERT(varchar,GETDATE(),1)    --输出 07/01/13
+　　SELECT CAST(GETDATE() AS varchar)    --输出 07 1 2013 9:56PM
