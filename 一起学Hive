@@ -1,2 +1,24 @@
 https://blog.csdn.net/zhangxinrun/article/details/54967323
 https://www.cnblogs.com/qingyunzong/p/8710356.html#_label1
+    概述
+    一、存储Hive版本的元数据表（VERSION）
+    二、Hive数据库相关的元数据表（DBS、DATABASE_PARAMS）
+        1、DBS
+        2、DATABASE_PARAMS
+    三、Hive表和视图相关的元数据表
+        1、TBLS
+        2、TABLE_PARAMS
+         3、TBL_PRIVS
+    四、Hive文件存储信息相关的元数据表
+        1、SDS
+         2、SD_PARAMS
+         3、SERDES
+         4、SERDE_PARAMS
+    五、Hive表字段相关的元数据表
+        1、COLUMNS_V2
+     六、Hive表分区相关的元数据表
+        1、PARTITIONS
+        2、PARTITION_KEYS
+        3、PARTITION_KEY_VALS
+        4、PARTITION_PARAMS
+    七、其他不常用的元数据表
