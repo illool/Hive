@@ -1,0 +1,29 @@
+hive 工作中用到的一些函数
+1. concat(string s1, string s2, string s3)
+这个函数能够把字符串类型的数据连接起来，连接的某个元素可以是列值。
+如 concat( name, ‘:’, score) 就相当于把 name 列和 score 列用逗号连接起来了
+2. cast
+用法：cast(value AS TYPE)
+功能：将某个列的值显示的转化为某个类型
+例子：cast(score as string ) 将 double 类型的数据转化为了 String 类型
+3. contact_ws(seperator, string s1, string s2…)
+功能：制定分隔符将多个字符串连接起来
+例子：常常结合 group by 与 collect_set 使用
+有表结构 a string , b string , c int
+数据为
+c d 1
+c d 2
+c d 3
+e f 4
+e f 5
+e f 6
+想要得到
+c d 1,2,3
+e f 4,5,6
+语句如下
+select a, b, concat_ws(‘,’ , collect_set(cast(c as string)))
+from table group by a,b;
+
+4. 上述用的到的 collect_set 函数，有两个作用，第一个是去重，去除 group by 后的重复元素，
+第二个是形成一个集合，将 group by 后属于同一组的第三列集合起来成为一个集合。与 contact_ws
+结合使用就是将这些元素以逗号分隔形成字符串
