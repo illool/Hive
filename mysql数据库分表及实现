@@ -1,0 +1,117 @@
+1，创建一个完整表存储着所有的成员信息
+create table member(
+id bigint auto_increment primary key,
+name varchar(20),
+sex tinyint not null default '0'
+)engine=myisam default charset=utf8 auto_increment=1;
+
+加入点数据：
+  insert into member(id,name,sex) values (1,'jacson','0');
+  insert into member(name,sex) select name,sex from member;
+第二条语句多执行几次就有了很多数据。
+
+2，下面我们进行分表：这里我们分两个表tb_member1,tb_member2
+DROP table IF EXISTS tb_member1;
+create table tb_member1(
+    id bigint primary key auto_increment ,
+    name varchar(20),
+    sex tinyint not null default '0'
+)ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ; 
+
+DROP table IF EXISTS tb_member2;
+create table tb_member2(
+    id bigint primary key auto_increment ,
+    name varchar(20),
+    sex tinyint not null default '0'
+)ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ; 
+
+//创建tb_member2也可以用下面的语句  create table tb_member2 like tb_member1; 
+3,创建主表tb_member
+//UNION=(tb_member1,tb_member2) 
+DROP table IF EXISTS tb_member;
+create table tb_member(
+id bigint primary key auto_increment ,
+name varchar(20),
+sex tinyint not null default '0'
+)ENGINE=MERGE UNION=(tb_member1,tb_member2) INSERT_METHOD=LAST CHARSET=utf8 AUTO_INCREMENT=1 ;
+
+mysql数据库分表及实现
+
+项目开发中，我们的数据库数据越来越大，随之而来的是单个表中数据太多。以至于查询书读变慢，而且由于表的锁机制导致应用操作也搜到严重影响，出现了数据库性能瓶颈。
+
+当出现这种情况时，我们可以考虑分表，即将单个数据库表进行拆分，拆分成多个数据表，然后用户访问的时候，根据一定的算法，让用户访问不同的表，这样数据分散到多个数据表中，减少了单个数据表的访问压力。提升了数据库访问性能。
+
+我们可以进行简单的设想：现在有一个表products存储产品信息，现在有100万用户在线访问，就要进行至少100万次请求，现在我们如果将它分成100个表即products0~~products99,那么利用一定的算法我们就分担了单个表的访问压力，每个表只有1万个请求（当然，这是理想情况下！）
+
+实现mysql 分表的关键在于：设计良好的算法来确定"什么时候情况下访问什么（哪个）表"。
+
+下面我们先来实现一个简单的mysql分表演示：这里使用MERGE分表法
+
+1，创建一个完整表存储着所有的成员信息
+
+     
+
+create table member(
+id bigint auto_increment primary key,
+name varchar(20),
+sex tinyint not null default '0'
+)engine=myisam default charset=utf8 auto_increment=1;
+
+加入点数据：
+
+  insert into member(id,name,sex) values (1,'jacson','0');
+
+  insert into member(name,sex) select name,sex from member;
+
+第二条语句多执行几次就有了很多数据。
+
+ 
+
+2，下面我们进行分表：这里我们分两个表tb_member1,tb_member2
+
+     
+
+DROP table IF EXISTS tb_member1;
+create table tb_member1(
+    id bigint primary key auto_increment ,
+    name varchar(20),
+    sex tinyint not null default '0'
+)ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ; 
+
+DROP table IF EXISTS tb_member2;
+create table tb_member2(
+    id bigint primary key auto_increment ,
+    name varchar(20),
+    sex tinyint not null default '0'
+)ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ; 
+
+//创建tb_member2也可以用下面的语句  create table tb_member2 like tb_member1;
+
+ 
+
+   3,创建主表tb_member
+
+DROP table IF EXISTS tb_member;
+create table tb_member(
+id bigint primary key auto_increment ,
+name varchar(20),
+sex tinyint not null default '0'
+)ENGINE=MERGE UNION=(tb_member1,tb_member2) INSERT_METHOD=LAST CHARSET=utf8 AUTO_INCREMENT=1 ;
+
+查看一下tb_member表的结构:desc tb_member;
+
+4,接下来，我们把数据分到两个分表中去：
+insert into tb_member1(id,name,sex) select id,name,sex from member where id%2=0;
+insert into tb_member2(id,name,sex) select id,name,sex from member where id%2=1;
+
+查看一下主表的数据：
+select * from tb_member;
+
+ 其实上面我们介绍的是水平分表的实施方法，还存在另一种方法叫做：垂直分表
+     垂直分表：
+      举例说明，在一个博客系统中，文章标题，作者，分类，创建时间等，是变化频率慢，查询次数多，而且最好有很好的实时性的数据，我们把它叫做冷数据。
+　　　　而博客的浏览量，回复数等，类似的统计信息，或者别的变化频率比较高的数据，我们把它叫做活跃数据。
+　　     我们进行纵向分表后：
+　　　　　　1,存储引擎的使用不同，冷数据使用MyIsam 可以有更好的查询数据。活跃数据，可以使用Innodb ,可以有更好的更新速度。
+　　　　　　2,对冷数据进行更多的从库配置，因为更多的操作是查询，这样来加快查询速度。对热数据，可以相对有更多的主库的横向分表处理。
+　　　　　　3,对于一些特殊的活跃数据，也可以考虑使用memcache ,redis之类的缓存，等累计到一定量再去更新数据库.
