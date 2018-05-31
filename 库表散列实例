@@ -1,0 +1,38 @@
+当数据量猛增的时候，大家都会选择库表散列等等方式去优化数据读写速度，举例说明：
+
+1亿条数据，分100张表
+
+1.首先创建100张表
+
+$i=0;
+while($i<=99){
+echo "$newNumber \r\n";
+$sql="CREATE TABLE `code_".$i."` (
+ `full_code` char(10) NOT NULL,
+ `create_time` int(10) unsigned NOT NULL,
+ PRIMARY KEY  (`full_code`),
+) ENGINE=MyISAM DEFAULT CHARSET=utf8";
+mysql_query($sql);
+$i++;
+
+2.分表规则：
+full_code作为主键，对full_code做hash
+$table_name=get_hash_table('code',$full_code);
+function get_hash_table($table,$code,$s=100){
+      $hash = sprintf("%u", crc32($code));
+      echo $hash;
+      $hash1 = intval(fmod($hash, $s));
+      return $table."_".$hash1;
+}
+
+这样插入数据前通过get_hash_table获取数据存放的表名。
+
+3.使用merge存储引擎来实现一张完整的code表
+
+CREATE TABLE IF NOT EXISTS `code` (   
+`full_code` char(10) NOT NULL,
+`create_time` int(10) unsigned NOT NULL,
+INDEX(full_code)   
+) TYPE=MERGE UNION=(code_0,code_1,code_2.......) INSERT_METHOD=LAST ;
+
+通过select * from code就可以得到所有的full_code数据了。
